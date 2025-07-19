@@ -9,19 +9,30 @@ use tplayer::{audio::AudioProvider, files::SourceProvider};
 struct Args {
     /// Source directory
     #[arg(short, long, default_value = "~/tplayer/")]
-    source: PathBuf,
+    source: String,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
-    println!("Source directory set to `{}`", args.source.display());
-    if !args.source.exists() {
+    // I don't wanna write out the whole home directory, so fill it in
+    let absolute_source = PathBuf::from(
+        args.source.replace(
+            '~',
+            std::env::home_dir()
+                .expect("You somehow don't have a home")
+                .to_str()
+                .unwrap(),
+        ),
+    );
+    println!("Source directory set to `{}`", absolute_source.display());
+
+    if !fs::exists(absolute_source.clone())? {
         println!("Source Directory doesn't exist, Generating...");
-        fs::create_dir_all(args.source.clone()).expect("Failed to generate directory");
+        fs::create_dir_all(absolute_source.clone()).expect("Failed to generate directory");
     }
 
-    let source = SourceProvider::build(args.source)?;
+    let source = SourceProvider::build(absolute_source)?;
     let audio = AudioProvider::new();
 
     for folder in source.playlists {
