@@ -1,8 +1,13 @@
 [package]
 name = "tplayer"
 version = "0.1.0"
+authors = ["Mason <Mason>"]
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.98"
 clap = { version = "4.5.41", features = ["derive"] }
+color-eyre = "0.6.5"
+crossterm = "0.29.0"
+ratatui = "0.29.0"
 rodio = "0.21.1"

@@ -1,7 +1,7 @@
 use clap::Parser;
-use std::{error::Error, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
-use tplayer::{audio::AudioProvider, files::SourceProvider};
+use tplayer::{app::App, audio::AudioProvider, files::SourceProvider};
 
 /// Terminal music player because GUIs don't like wayland
 #[derive(Parser, Debug)]
@@ -12,7 +12,8 @@ struct Args {
     source: String,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
     let args = Args::parse();
 
     // I don't wanna write out the whole home directory, so fill it in
@@ -27,20 +28,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     println!("Source directory set to `{}`", absolute_source.display());
 
+    // Create directory if needed
     if !fs::exists(absolute_source.clone())? {
         println!("Source Directory doesn't exist, Generating...");
         fs::create_dir_all(absolute_source.clone()).expect("Failed to generate directory");
     }
 
+    // Init Providers
     let source = SourceProvider::build(absolute_source)?;
     let audio = AudioProvider::new();
 
-    for folder in source.playlists {
-        println!("- {}", folder.name);
-        for song in folder.songs {
-            println!("! {}", song.name)
-        }
-    }
-
-    Ok(())
+    let terminal = ratatui::init();
+    let result = App::new(source, audio).run(terminal);
+    ratatui::restore();
+    result
 }

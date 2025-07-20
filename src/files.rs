@@ -4,6 +4,12 @@ use std::{
     path::PathBuf,
 };
 
+use color_eyre::owo_colors::OwoColorize;
+use ratatui::{
+    style::{Style, Stylize},
+    text::{Line, Text},
+};
+
 const AUDIO_EXTENSIONS: [&str; 7] = ["aac", "alac", "flac", "mp3", "ogg", "opus", "wav"];
 
 pub struct SourceProvider {
@@ -41,6 +47,27 @@ impl SourceProvider {
             path: path.clone(),
             playlists: children,
         })
+    }
+
+    pub fn list_playlists(&self) -> Vec<Text> {
+        let mut result = Vec::new();
+
+        for i in &self.playlists {
+            // Split the title so they can be individually styled
+            let mut parts: Vec<&str> = i.name.split(" - ").collect();
+
+            let artist = Line::styled(parts.pop().unwrap(), Style::new().bold());
+            let title = Line::styled(
+                parts
+                    .pop()
+                    .expect("Unexpected name format.\nDesired: [ARTIST] - [TITLE]"),
+                Style::new().dim().italic(),
+            );
+
+            result.push(Text::from(vec![artist, title]));
+        }
+
+        return result;
     }
 }
 
