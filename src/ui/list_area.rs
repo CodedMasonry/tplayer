@@ -32,7 +32,7 @@ impl StatefulWidget for ListArea<'_> {
             )
             .highlight_style(match self.is_focused {
                 true => Style::default().reversed().fg(Color::Green).not_dim(),
-                false => Style::default().dim(),
+                false => Style::default().fg(Color::Green).not_dim(),
             })
             .highlight_symbol("|")
             .repeat_highlight_symbol(true);

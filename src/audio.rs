@@ -1,7 +1,9 @@
-use std::{fs, path::Path};
+use std::fs;
 
 use anyhow::Error;
 use rodio::{OutputStream, Sink};
+
+use crate::files::Song;
 
 pub struct AudioProvider {
     _stream_handle: OutputStream,
@@ -20,9 +22,13 @@ impl AudioProvider {
         };
     }
 
-    pub fn play_file(&self, path: &Path) -> Result<(), Error> {
-        let file = fs::File::open(path)?;
+    pub fn play_song(&self, song: &Song) -> Result<(), Error> {
+        let file = fs::File::open(&song.path)?;
+
+        // Clean up sink so it plays immediately
+        self.sink.clear();
         self.sink.append(rodio::Decoder::try_from(file)?);
+        self.sink.play();
 
         Ok(())
     }

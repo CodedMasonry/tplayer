@@ -52,6 +52,7 @@ impl SourceProvider {
         })
     }
 
+    /// Lists out playlists to be displayed
     pub fn list_playlists(&self) -> Vec<Text> {
         let mut result = Vec::new();
 
@@ -65,6 +66,7 @@ impl SourceProvider {
         return result;
     }
 
+    /// Lists out songs in a playlist to be displayed
     pub fn list_songs_from_playlists(&self, index: usize) -> Vec<Text> {
         let mut result = Vec::new();
         let playlist = self.playlists.get(index);
@@ -81,11 +83,17 @@ impl SourceProvider {
         return result;
     }
 
+    /// Number of songs in a playlist at index
     pub fn songs_in_playlists(&self, index: usize) -> usize {
         match self.playlists.get(index) {
             Some(v) => v.songs.len(),
             None => 0,
         }
+    }
+
+    /// Get a song in specific playlist & song index
+    pub fn get_song(&self, playlist: usize, song: usize) -> Option<&Song> {
+        self.playlists.get(playlist)?.songs.get(song)
     }
 }
 

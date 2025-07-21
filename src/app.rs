@@ -1,7 +1,7 @@
 use crate::{
     audio::AudioProvider,
     event::{AppEvent, Event, EventHandler},
-    files::SourceProvider,
+    files::{Playlist, Song, SourceProvider},
 };
 use ratatui::{
     DefaultTerminal,
@@ -32,6 +32,10 @@ pub struct App {
 }
 
 impl App {
+    /*
+     * Primary Functions
+     */
+
     /// Constructs a new instance of [`App`].
     pub fn new(source: SourceProvider, audio: AudioProvider) -> Self {
         // Init Lists
@@ -62,6 +66,10 @@ impl App {
         }
         Ok(())
     }
+
+    /*
+     * Handlers
+     */
 
     pub fn handle_events(&mut self) -> color_eyre::Result<()> {
         match self.events.next()? {
@@ -147,7 +155,10 @@ impl App {
                 CurrentList::Playlists => {
                     self.current_list = CurrentList::Songs;
                 }
-                CurrentList::Songs => todo!(),
+                CurrentList::Songs => self
+                    .audio
+                    .play_song(self.selected_song())
+                    .expect("Failed to play song"),
             },
             AppEvent::ListBack => self.current_list = CurrentList::Playlists,
 
@@ -155,10 +166,40 @@ impl App {
         };
     }
 
+    /*
+     * Fetchers
+     */
+
+    pub fn selected_playlist(&self) -> &Playlist {
+        self.source
+            .playlists
+            .get(self.album_list_state.selected().unwrap())
+            .unwrap()
+    }
+
+    pub fn selected_song(&self) -> &Song {
+        let playlist = self
+            .source
+            .playlists
+            .get(self.album_list_state.selected().unwrap())
+            .unwrap();
+        playlist
+            .songs
+            .get(self.song_list_state.selected().unwrap())
+            .unwrap()
+    }
+
+    /*
+     *  Tick
+     */
+
     /// Handles the tick event of the terminal
     pub fn tick(&self) {}
 
-    /// Set quit to false to quit the application
+    /*
+     * Quit
+     */
+
     pub fn quit(&mut self) {
         self.quit = true;
     }
