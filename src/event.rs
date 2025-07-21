@@ -33,8 +33,20 @@ pub enum Event {
 /// You can extend this enum with your own custom events.
 #[derive(Clone, Debug)]
 pub enum AppEvent {
-    /// Quit the application.
+    /// Quit
     Quit,
+
+    /// List
+    ListUp,
+    ListDown,
+    ListSelect,
+    ListBack,
+
+    /// Playback
+    PlayNext,
+    PlayPrevious,
+    PlaySeekForward,
+    PlaySeekBack,
 }
 
 /// Terminal event handler.

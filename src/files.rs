@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use color_eyre::owo_colors::OwoColorize;
+use anyhow::Context;
 use ratatui::{
     style::{Style, Stylize},
     text::{Line, Text},
@@ -17,14 +17,17 @@ pub struct SourceProvider {
     pub playlists: Vec<Playlist>,
 }
 
+#[derive(Default)]
 pub struct Playlist {
-    pub name: String,
+    pub title: String,
+    pub artists: String,
     pub path: PathBuf,
     pub songs: Vec<Song>,
 }
 
 pub struct Song {
-    pub name: String,
+    pub index: usize,
+    pub title: String,
     pub path: PathBuf,
 }
 
@@ -53,26 +56,49 @@ impl SourceProvider {
         let mut result = Vec::new();
 
         for i in &self.playlists {
-            // Split the title so they can be individually styled
-            let mut parts: Vec<&str> = i.name.split(" - ").collect();
-
-            let artist = Line::styled(parts.pop().unwrap(), Style::new().bold());
-            let title = Line::styled(
-                parts
-                    .pop()
-                    .expect("Unexpected name format.\nDesired: [ARTIST] - [TITLE]"),
-                Style::new().dim().italic(),
-            );
+            let artist = Line::styled(&i.title, Style::new().bold());
+            let title = Line::styled(&i.artists, Style::new().dim().italic());
 
             result.push(Text::from(vec![artist, title]));
         }
 
         return result;
     }
+
+    pub fn list_songs_from_playlists(&self, index: usize) -> Vec<Text> {
+        let mut result = Vec::new();
+        let playlist = self.playlists.get(index);
+
+        // Doesn't exist, so nothing in list
+        if let None = playlist {
+            return result;
+        }
+
+        for i in &playlist.unwrap().songs {
+            result.push(Text::from(i.title.as_str()));
+        }
+
+        return result;
+    }
+
+    pub fn songs_in_playlists(&self, index: usize) -> usize {
+        match self.playlists.get(index) {
+            Some(v) => v.songs.len(),
+            None => 0,
+        }
+    }
 }
 
 impl Playlist {
     pub fn build(name: String, path: PathBuf) -> Result<Self, Error> {
+        // Title & Artist(s)
+        let mut name_parts = name.split(" - ");
+        let artists = name_parts.next().unwrap().to_string();
+        let title = name_parts.next().context(name.clone()).expect(
+            "Unexpected name format. Desired: [INDEX] [ARTIST] - [TITLE]\nNo Artist / Index found",
+        ).to_string();
+
+        // Songs
         let children: Vec<Song> = fs::read_dir(&path)?
             .filter_map(|child| child.ok()) // Is able to read
             .filter_map(|child| {
@@ -87,7 +113,8 @@ impl Playlist {
             .collect();
 
         Ok(Self {
-            name,
+            title,
+            artists,
             path,
             songs: children,
         })
@@ -96,10 +123,18 @@ impl Playlist {
 
 impl Song {
     /// Returns Some if codec is supported, otherwise returns none
-    pub fn try_new(name: String, path: PathBuf) -> Option<Self> {
+    pub fn try_new(title: String, path: PathBuf) -> Option<Self> {
         let extension = path.extension()?.to_str()?;
         if AUDIO_EXTENSIONS.contains(&extension) {
-            Some(Self { name, path })
+            // Parses for index
+            let index = title[0..2].parse::<usize>().context(title.clone()).expect(
+                "Unexpected name format. Desired: [INDEX] [ARTIST] - [TITLE]\nNo Index found",
+            );
+            // Parse for title
+            let offset_extension = title.len() - (extension.len() + 1);
+            let title = title[2..offset_extension].to_string();
+
+            Some(Self { index, title, path })
         } else {
             None
         }
