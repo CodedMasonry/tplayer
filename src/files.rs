@@ -12,7 +12,7 @@ use ratatui::{
 
 const AUDIO_EXTENSIONS: [&str; 7] = ["aac", "alac", "flac", "mp3", "ogg", "opus", "wav"];
 
-pub struct SourceProvider {
+pub struct SourceHandler {
     pub path: PathBuf,
     pub playlists: Vec<Playlist>,
 }
@@ -25,20 +25,32 @@ pub struct Playlist {
     pub songs: Vec<Song>,
 }
 
+#[derive(Clone)]
 pub struct Song {
     pub index: usize,
     pub title: String,
     pub path: PathBuf,
+    pub playlist_index: usize,
 }
 
-impl SourceProvider {
+impl SourceHandler {
     pub fn build(path: PathBuf) -> Result<Self, Error> {
+        // Use indexes so songs can be backtraced to playlist
+        let mut playlist_index = 0;
+
         let children: Vec<Playlist> = fs::read_dir(&path)?
             .filter_map(|child| child.ok()) // Is able to read
             .filter_map(|child| {
                 if child.file_type().ok()?.is_dir() {
                     // Is a directory
-                    Playlist::build(child.file_name().into_string().unwrap(), child.path()).ok()
+                    let playlist = Playlist::build(
+                        child.file_name().into_string().unwrap(),
+                        child.path(),
+                        playlist_index,
+                    );
+                    playlist_index += 1;
+
+                    playlist.ok()
                 } else {
                     // Is regular file
                     None
@@ -90,15 +102,10 @@ impl SourceProvider {
             None => 0,
         }
     }
-
-    /// Get a song in specific playlist & song index
-    pub fn get_song(&self, playlist: usize, song: usize) -> Option<&Song> {
-        self.playlists.get(playlist)?.songs.get(song)
-    }
 }
 
 impl Playlist {
-    pub fn build(name: String, path: PathBuf) -> Result<Self, Error> {
+    pub fn build(name: String, path: PathBuf, playlist_index: usize) -> Result<Self, Error> {
         // Title & Artist(s)
         let mut name_parts = name.split(" - ");
         let artists = name_parts.next().unwrap().to_string();
@@ -112,7 +119,11 @@ impl Playlist {
             .filter_map(|child| {
                 if child.file_type().ok()?.is_file() {
                     // Is a file
-                    Song::try_new(child.file_name().into_string().unwrap(), child.path())
+                    Song::try_new(
+                        child.file_name().into_string().unwrap(),
+                        child.path(),
+                        playlist_index,
+                    )
                 } else {
                     // Is dir
                     None
@@ -131,7 +142,7 @@ impl Playlist {
 
 impl Song {
     /// Returns Some if codec is supported, otherwise returns none
-    pub fn try_new(title: String, path: PathBuf) -> Option<Self> {
+    pub fn try_new(title: String, path: PathBuf, playlist_index: usize) -> Option<Self> {
         let extension = path.extension()?.to_str()?;
         if AUDIO_EXTENSIONS.contains(&extension) {
             // Parses for index
@@ -142,7 +153,12 @@ impl Song {
             let offset_extension = title.len() - (extension.len() + 1);
             let title = title[2..offset_extension].to_string();
 
-            Some(Self { index, title, path })
+            Some(Self {
+                index,
+                title,
+                path,
+                playlist_index,
+            })
         } else {
             None
         }

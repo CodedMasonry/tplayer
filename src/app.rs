@@ -1,7 +1,7 @@
 use crate::{
-    audio::AudioProvider,
+    audio::AudioHandler,
     event::{AppEvent, Event, EventHandler},
-    files::{Playlist, Song, SourceProvider},
+    files::{Playlist, Song, SourceHandler},
 };
 use ratatui::{
     DefaultTerminal,
@@ -20,9 +20,9 @@ pub struct App {
     /// Quit
     pub quit: bool,
 
-    /// Providers & Handlers
-    pub source: SourceProvider,
-    pub audio: AudioProvider,
+    /// Handlers & Handlers
+    pub source: SourceHandler,
+    pub audio: AudioHandler,
     pub events: EventHandler,
 
     /// State Handling
@@ -37,7 +37,7 @@ impl App {
      */
 
     /// Constructs a new instance of [`App`].
-    pub fn new(source: SourceProvider, audio: AudioProvider) -> Self {
+    pub fn new(source: SourceHandler, audio: AudioHandler) -> Self {
         // Init Lists
         let mut album_list_state = ListState::default();
         album_list_state.select_first();
@@ -155,10 +155,10 @@ impl App {
                 CurrentList::Playlists => {
                     self.current_list = CurrentList::Songs;
                 }
-                CurrentList::Songs => self
-                    .audio
-                    .play_song(self.selected_song())
-                    .expect("Failed to play song"),
+                CurrentList::Songs => {
+                    let song = self.selected_song().clone();
+                    self.audio.play_song(&song).expect("Failed to play song")
+                }
             },
             AppEvent::ListBack => self.current_list = CurrentList::Playlists,
 
@@ -178,15 +178,20 @@ impl App {
     }
 
     pub fn selected_song(&self) -> &Song {
-        let playlist = self
-            .source
-            .playlists
-            .get(self.album_list_state.selected().unwrap())
-            .unwrap();
+        let playlist = self.selected_playlist();
         playlist
             .songs
             .get(self.song_list_state.selected().unwrap())
             .unwrap()
+    }
+
+    pub fn song_to_playlist(&self, song: &Song) -> &Playlist {
+        self.source.playlists.get(song.playlist_index).unwrap()
+    }
+
+    pub fn next_in_playlist(&self, song: &Song) -> &Song {
+        let playlist = self.song_to_playlist(song);
+        playlist.songs.get(song.index + 1).unwrap()
     }
 
     /*
@@ -194,7 +199,23 @@ impl App {
      */
 
     /// Handles the tick event of the terminal
-    pub fn tick(&self) {}
+    pub fn tick(&mut self) {
+        self.tick_audio();
+    }
+
+    pub fn tick_audio(&mut self) {
+        // If queue has finished & there a playlist has been selected
+        let primary_track = &self.audio.primary_track;
+        if self.audio.sink.empty() && primary_track.is_some() {
+            // If Song isn't last in playlist, play next
+            let primary_track = primary_track.clone().unwrap();
+            if primary_track.index < self.song_to_playlist(&primary_track).songs.len() {
+                self.audio
+                    .play_song(&self.next_in_playlist(&primary_track).clone())
+                    .unwrap();
+            }
+        }
+    }
 
     /*
      * Quit
