@@ -1,7 +1,7 @@
 use crate::{
     audio::AudioHandler,
     event::{AppEvent, Event, EventHandler},
-    files::{Playlist, Song, SourceHandler},
+    files::{Playlist, SourceHandler, Track},
 };
 use ratatui::{
     DefaultTerminal,
@@ -12,7 +12,7 @@ use ratatui::{
 #[derive(PartialEq)]
 pub enum CurrentList {
     Playlists,
-    Songs,
+    Tracks,
 }
 
 /// Application.
@@ -28,7 +28,7 @@ pub struct App {
     /// State Handling
     pub current_list: CurrentList,
     pub album_list_state: ListState,
-    pub song_list_state: ListState,
+    pub track_list_state: ListState,
 }
 
 impl App {
@@ -42,8 +42,8 @@ impl App {
         let mut album_list_state = ListState::default();
         album_list_state.select_first();
 
-        let mut song_list_state = ListState::default();
-        song_list_state.select_first();
+        let mut track_list_state = ListState::default();
+        track_list_state.select_first();
 
         Self {
             quit: false,
@@ -54,7 +54,7 @@ impl App {
 
             current_list: CurrentList::Playlists,
             album_list_state,
-            song_list_state,
+            track_list_state,
         }
     }
 
@@ -94,10 +94,15 @@ impl App {
                 AppEvent::ListBack => self.handle_list_events(AppEvent::ListBack),
 
                 // Playback
-                AppEvent::PlayNext => todo!(),
-                AppEvent::PlayPrevious => todo!(),
-                AppEvent::PlaySeekForward => todo!(),
-                AppEvent::PlaySeekBack => todo!(),
+                AppEvent::PlayTogle => self.audio.toggle_playing(),
+                AppEvent::PlayNext => self.audio.next(),
+                AppEvent::PlayPrevious => self.previous(),
+                AppEvent::PlaySeekForward => self.audio.seek_forward(),
+                AppEvent::PlaySeekBack => self.audio.seek_back(),
+
+                // Volume
+                AppEvent::VolumeUp => self.audio.raise_volume(0.05),
+                AppEvent::VolumeDown => self.audio.lower_volume(0.05),
             },
         }
         Ok(())
@@ -117,6 +122,17 @@ impl App {
             KeyCode::Down => self.events.send(AppEvent::ListDown),
             KeyCode::Enter => self.events.send(AppEvent::ListSelect),
             KeyCode::Esc => self.events.send(AppEvent::ListBack),
+
+            // Playback
+            KeyCode::Char(' ') => self.events.send(AppEvent::PlayTogle),
+            KeyCode::Right if key_event.modifiers == KeyModifiers::CONTROL => {
+                self.events.send(AppEvent::PlayNext);
+            }
+            KeyCode::Left if key_event.modifiers == KeyModifiers::CONTROL => {
+                self.events.send(AppEvent::PlayPrevious);
+            }
+            KeyCode::Right => self.events.send(AppEvent::PlaySeekForward),
+            KeyCode::Left => self.events.send(AppEvent::PlaySeekBack),
             _ => {}
         }
         Ok(())
@@ -127,17 +143,17 @@ impl App {
         // Get context
         let (current_list, list_length) = match self.current_list {
             CurrentList::Playlists => {
-                // Cleanup song list to make UI transition look cleaner
-                self.song_list_state.select_first();
+                // Cleanup track list to make UI transition look cleaner
+                self.track_list_state.select_first();
                 // list & length
                 (&mut self.album_list_state, self.source.playlists.len())
             }
-            CurrentList::Songs => (
+            CurrentList::Tracks => (
                 // List
-                &mut self.song_list_state,
+                &mut self.track_list_state,
                 // Length
                 self.source
-                    .songs_in_playlists(self.album_list_state.selected().unwrap()),
+                    .tracks_in_playlists(self.album_list_state.selected().unwrap()),
             ),
         };
 
@@ -153,17 +169,33 @@ impl App {
             },
             AppEvent::ListSelect => match self.current_list {
                 CurrentList::Playlists => {
-                    self.current_list = CurrentList::Songs;
+                    self.current_list = CurrentList::Tracks;
                 }
-                CurrentList::Songs => {
-                    let song = self.selected_song().clone();
-                    self.audio.play_song(&song).expect("Failed to play song")
+                CurrentList::Tracks => {
+                    let track = self.selected_track().clone();
+                    self.audio
+                        .play_track(&track, true)
+                        .expect("Failed to play track")
                 }
             },
             AppEvent::ListBack => self.current_list = CurrentList::Playlists,
 
             _ => {}
         };
+    }
+
+    /// Handles trying to play previous song
+    fn previous(&mut self) {
+        if let Some(primary_track) = &self.audio.primary_track {
+            if primary_track.number > 1 {
+                self.audio
+                    .play_track(
+                        &self.previous_in_playlist(&primary_track).unwrap().clone(),
+                        true,
+                    )
+                    .unwrap();
+            }
+        }
     }
 
     /*
@@ -177,21 +209,32 @@ impl App {
             .unwrap()
     }
 
-    pub fn selected_song(&self) -> &Song {
+    pub fn selected_track(&self) -> &Track {
         let playlist = self.selected_playlist();
         playlist
-            .songs
-            .get(self.song_list_state.selected().unwrap())
+            .tracks
+            .get(self.track_list_state.selected().unwrap())
             .unwrap()
     }
 
-    pub fn song_to_playlist(&self, song: &Song) -> &Playlist {
-        self.source.playlists.get(song.playlist_index).unwrap()
+    pub fn track_to_playlist(&self, track: &Track) -> &Playlist {
+        self.source.playlists.get(track.playlist_index).unwrap()
     }
 
-    pub fn next_in_playlist(&self, song: &Song) -> &Song {
-        let playlist = self.song_to_playlist(song);
-        playlist.songs.get(song.index + 1).unwrap()
+    /*
+     * Audio functions that require higher context
+     */
+
+    pub fn next_in_playlist(&self, track: &Track) -> Option<&Track> {
+        let playlist = self.track_to_playlist(track);
+        // The number starts at 1 instead of 0 (how albums number), so just use it as the index for next
+        playlist.tracks.get(track.number)
+    }
+
+    pub fn previous_in_playlist(&self, track: &Track) -> Option<&Track> {
+        let playlist = self.track_to_playlist(track);
+        // The number starts at 1 instead of 0 (how albums number), so subtract 2 to get previous
+        playlist.tracks.get(track.number - 2)
     }
 
     /*
@@ -204,16 +247,33 @@ impl App {
     }
 
     pub fn tick_audio(&mut self) {
-        // If queue has finished & there a playlist has been selected
         let primary_track = &self.audio.primary_track;
-        if self.audio.sink.empty() && primary_track.is_some() {
-            // If Song isn't last in playlist, play next
-            let primary_track = primary_track.clone().unwrap();
-            if primary_track.index < self.song_to_playlist(&primary_track).songs.len() {
-                self.audio
-                    .play_song(&self.next_in_playlist(&primary_track).clone())
-                    .unwrap();
+
+        // track has finished
+        if self.audio.sink.empty() {
+            // There is a queue
+            if self.audio.queue.len() > 0 {
+                let next = &self.audio.pop_queue().unwrap();
+                self.audio.play_track(next, false).unwrap();
             }
+            // Play next in playlist if nothing in queue
+            else if primary_track.is_some() {
+                let primary_track = primary_track.clone().unwrap();
+                if primary_track.number < self.track_to_playlist(&primary_track).tracks.len() {
+                    self.audio
+                        .play_track(
+                            &self.next_in_playlist(&primary_track).unwrap().clone(),
+                            true,
+                        )
+                        .unwrap();
+                }
+            }
+        }
+
+        // Tick track progress
+        if !self.audio.sink.is_paused() && self.audio.current_track.is_some() {
+            let current_track = self.audio.current_track.as_mut().unwrap();
+            current_track.elapsed_duration = self.audio.sink.get_pos();
         }
     }
 

@@ -43,10 +43,15 @@ pub enum AppEvent {
     ListBack,
 
     /// Playback
+    PlayTogle,
     PlayNext,
     PlayPrevious,
     PlaySeekForward,
     PlaySeekBack,
+
+    /// Volume
+    VolumeUp,
+    VolumeDown,
 }
 
 /// Terminal event handler.

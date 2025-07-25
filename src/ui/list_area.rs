@@ -27,7 +27,7 @@ impl StatefulWidget for ListArea<'_> {
                     .border_type(BorderType::Rounded)
                     .border_style(match self.is_focused {
                         true => Style::default().fg(Color::Green),
-                        false => Style::default(),
+                        false => Style::default().fg(Color::Green),
                     }),
             )
             .highlight_style(match self.is_focused {
