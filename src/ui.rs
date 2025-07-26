@@ -72,7 +72,10 @@ impl App {
         frame.render_stateful_widget(
             Progress::new(),
             horizontal_bottom[1],
-            &mut self.audio.current_track,
+            &mut (
+                self.audio.current_track.as_mut(),
+                self.audio.sink.is_paused(),
+            ),
         );
         frame.render_stateful_widget(
             Status::new(),

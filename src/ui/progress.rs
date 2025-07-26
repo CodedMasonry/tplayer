@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{marker::PhantomData, time::Duration};
 
 use ratatui::{
     buffer::Buffer,
@@ -9,23 +9,28 @@ use ratatui::{
 
 use crate::audio::CurrentTrack;
 
-pub struct Progress {}
+pub struct Progress<'a> {
+    _marker: PhantomData<&'a ()>,
+}
 
-impl Progress {
+impl<'a> Progress<'_> {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            _marker: PhantomData,
+        }
     }
 }
 
-impl StatefulWidget for Progress {
-    type State = Option<CurrentTrack>;
+impl<'a> StatefulWidget for Progress<'a> {
+    type State = (Option<&'a mut CurrentTrack>, bool);
 
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Option<CurrentTrack>) {
-        let (elapsed, total) = match state {
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut (Option<&mut CurrentTrack>, bool)) {
+        // Get numbers
+        let (elapsed, total) = match state.0.as_ref() {
             Some(v) => (v.elapsed_duration, v.total_duration),
             None => (Duration::default(), Duration::default()),
         };
-        let mut percent = match state {
+        let mut percent = match state.0.as_ref() {
             Some(v) => v.elapsed_duration.as_secs_f64() / v.total_duration.as_secs_f64(),
             None => 0.0,
         };
@@ -38,6 +43,10 @@ impl StatefulWidget for Progress {
             percent = 0.0;
         }
 
+        // Pause icon
+        let pause_text = if state.1 { "‖" } else { " " };
+
+        // Generate line
         let line = Gauge::default()
             .block(
                 Block::bordered()
@@ -46,7 +55,8 @@ impl StatefulWidget for Progress {
             )
             .gauge_style(Style::default().green().italic())
             .label(format!(
-                "{} / {}",
+                "{} {} / {}",
+                pause_text,
                 format_duration(elapsed),
                 format_duration(total)
             ))

@@ -2,7 +2,7 @@ use ratatui::{
     buffer::Buffer,
     layout::Rect,
     style::{Color, Style, Stylize},
-    text::{Line, Span, ToSpan},
+    text::{Line, Span},
     widgets::{Block, BorderType, Paragraph, StatefulWidget, Widget},
 };
 
