@@ -1,11 +1,13 @@
 use std::{
     fs::{self},
     io::Error,
+    num,
     path::PathBuf,
     time::Duration,
 };
 
 use anyhow::Context;
+use hashbrown::HashMap;
 use lofty::{
     file::{AudioFile, TaggedFileExt},
     tag::Accessor,
@@ -19,7 +21,7 @@ const AUDIO_EXTENSIONS: [&str; 7] = ["aac", "alac", "flac", "mp3", "ogg", "opus"
 
 pub struct SourceHandler {
     pub path: PathBuf,
-    pub playlists: Vec<Playlist>,
+    pub playlists: HashMap<usize, Playlist>,
 }
 
 #[derive(Default)]
@@ -59,10 +61,11 @@ pub struct TrackMetadata {
 
 impl SourceHandler {
     pub fn build(path: PathBuf) -> Result<Self, Error> {
+        let mut playlists = HashMap::new();
         // Use indexes so tracks can be backtraced to playlist
         let mut id = 0;
 
-        let children: Vec<Playlist> = fs::read_dir(&path)?
+        fs::read_dir(&path)?
             .filter_map(|child| child.ok()) // Is able to read
             .filter_map(|child| {
                 if child.file_type().ok()?.is_dir() {
@@ -77,11 +80,13 @@ impl SourceHandler {
                     None
                 }
             })
-            .collect();
+            .for_each(|child| {
+                playlists.insert(child.id, child);
+            });
 
         Ok(Self {
             path: path.clone(),
-            playlists: children,
+            playlists: playlists,
         })
     }
 
@@ -89,9 +94,9 @@ impl SourceHandler {
     pub fn list_playlists(&self) -> Vec<Text> {
         let mut result = Vec::new();
 
-        for i in &self.playlists {
-            let title = Line::styled(&i.title, Style::new().bold());
-            let artists = Line::styled(&i.artists, Style::new().dim().italic());
+        for (_, playlist) in &self.playlists {
+            let title = Line::styled(&playlist.title, Style::new().bold());
+            let artists = Line::styled(&playlist.artists, Style::new().dim().italic());
 
             result.push(Text::from(vec![title, artists]));
         }
@@ -100,8 +105,8 @@ impl SourceHandler {
     }
 
     /// Number of tracks in a playlist at index
-    pub fn num_tracks_in_playlists(&self, index: usize) -> usize {
-        match self.playlists.get(index) {
+    pub fn num_tracks_in_playlists(&self, id: usize) -> usize {
+        match self.playlists.get(&id) {
             Some(v) => v.tracks().len(),
             None => 0,
         }

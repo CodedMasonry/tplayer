@@ -58,7 +58,7 @@ impl App {
             ListArea::new(
                 self.source
                     .playlists
-                    .get(current_playlist)
+                    .get(&current_playlist)
                     .unwrap()
                     .display(),
                 self.current_list == CurrentList::Tracks,

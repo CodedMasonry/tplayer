@@ -237,19 +237,21 @@ impl App {
     pub fn selected_playlist(&self) -> &Playlist {
         self.source
             .playlists
-            .get(self.album_list_state.selected().unwrap())
+            .get(&self.album_list_state.selected().unwrap())
             .unwrap()
     }
 
     pub fn selected_track(&self) -> Track {
         let playlist = self.selected_playlist();
+
+        // Indexes of tracks start a 1
         playlist
-            .get(self.track_list_state.selected().unwrap() as u32)
+            .get((self.track_list_state.selected().unwrap() + 1) as u32)
             .unwrap()
     }
 
     pub fn track_to_playlist(&self, track: &Track) -> &Playlist {
-        self.source.playlists.get(track.playlist_index).unwrap()
+        self.source.playlists.get(&track.playlist_index).unwrap()
     }
 
     /*
