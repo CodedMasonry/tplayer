@@ -90,6 +90,7 @@ impl App {
                 // List
                 AppEvent::ListUp => self.handle_list_events(AppEvent::ListUp),
                 AppEvent::ListDown => self.handle_list_events(AppEvent::ListDown),
+                AppEvent::ListQueue => self.handle_list_events(AppEvent::ListQueue),
                 AppEvent::ListSelect => self.handle_list_events(AppEvent::ListSelect),
                 AppEvent::ListBack => self.handle_list_events(AppEvent::ListBack),
 
@@ -117,9 +118,18 @@ impl App {
                 self.events.send(AppEvent::Quit)
             }
 
+            // Volume
+            KeyCode::Up if key_event.modifiers == KeyModifiers::CONTROL => {
+                self.events.send(AppEvent::VolumeUp);
+            }
+            KeyCode::Down if key_event.modifiers == KeyModifiers::CONTROL => {
+                self.events.send(AppEvent::VolumeDown);
+            }
+
             // List
             KeyCode::Up => self.events.send(AppEvent::ListUp),
             KeyCode::Down => self.events.send(AppEvent::ListDown),
+            KeyCode::Tab => self.events.send(AppEvent::ListQueue),
             KeyCode::Enter => self.events.send(AppEvent::ListSelect),
             KeyCode::Esc => self.events.send(AppEvent::ListBack),
 
@@ -159,14 +169,28 @@ impl App {
 
         // Handle in context
         match event {
+            // Up
             AppEvent::ListUp => match current_list.selected().unwrap() <= 0 {
                 true => current_list.select(Some(list_length - 1)),
                 false => current_list.select_previous(),
             },
+            // Down
             AppEvent::ListDown => match current_list.selected().unwrap() >= list_length - 1 {
                 true => current_list.select(Some(0)),
                 false => current_list.select_next(),
             },
+            // Queue
+            AppEvent::ListQueue => match self.current_list {
+                // Only works on tracks, can't queue playlist
+                CurrentList::Playlists => {}
+                CurrentList::Tracks => {
+                    let track = self.selected_track().clone();
+                    self.audio
+                        .queue_track(&track)
+                        .expect("Failed to play track")
+                }
+            },
+            // Select
             AppEvent::ListSelect => match self.current_list {
                 CurrentList::Playlists => {
                     self.current_list = CurrentList::Tracks;
@@ -178,8 +202,9 @@ impl App {
                         .expect("Failed to play track")
                 }
             },
+            // Back
             AppEvent::ListBack => self.current_list = CurrentList::Playlists,
-
+            // Only want list events
             _ => {}
         };
     }

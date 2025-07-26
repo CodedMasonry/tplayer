@@ -10,7 +10,12 @@ use ratatui::{
 
 use crate::{
     app::{App, CurrentList},
-    ui::{current_playing::CurrentPlaying, list_area::ListArea, progress::Progress},
+    ui::{
+        current_playing::CurrentPlaying,
+        list_area::ListArea,
+        progress::Progress,
+        status::{Status, StatusInfo},
+    },
 };
 
 impl App {
@@ -57,6 +62,7 @@ impl App {
             horizontal_top[1],
             &mut self.track_list_state,
         );
+
         // Render Bottom
         frame.render_stateful_widget(
             CurrentPlaying::new(),
@@ -67,6 +73,14 @@ impl App {
             Progress::new(),
             horizontal_bottom[1],
             &mut self.audio.current_track,
+        );
+        frame.render_stateful_widget(
+            Status::new(),
+            horizontal_bottom[2],
+            &mut StatusInfo {
+                volume: self.audio.volume(),
+                queue_len: self.audio.queue.len(),
+            },
         );
     }
 }

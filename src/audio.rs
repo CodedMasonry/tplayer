@@ -139,20 +139,24 @@ impl AudioHandler {
     pub fn lower_volume(&self, amount: f32) {
         let volume = self.volume();
 
-        if volume - amount == 0.0 {
+        if volume - amount <= 0.0 {
             self.sink.set_volume(0.0);
         } else {
-            self.sink.set_volume(volume - amount)
+            self.sink.set_volume(round_vol(volume - amount))
         }
     }
 
     pub fn raise_volume(&self, amount: f32) {
         let volume = self.volume();
 
-        if volume + amount == 1.0 {
+        if volume + amount >= 1.0 {
             self.sink.set_volume(1.0);
         } else {
-            self.sink.set_volume(volume - amount)
+            self.sink.set_volume(round_vol(volume + amount))
         }
     }
+}
+
+fn round_vol(input: f32) -> f32 {
+    (input * 100.0).round() / 100.0
 }

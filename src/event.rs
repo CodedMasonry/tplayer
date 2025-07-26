@@ -39,6 +39,7 @@ pub enum AppEvent {
     /// List
     ListUp,
     ListDown,
+    ListQueue,
     ListSelect,
     ListBack,
 

@@ -1,12 +1,15 @@
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Style, Stylize},
-    text::Line,
+    style::{Color, Style, Stylize},
+    text::{Line, Span, ToSpan},
     widgets::{Block, BorderType, Paragraph, StatefulWidget, Widget},
 };
 
-use crate::audio::CurrentTrack;
+pub struct StatusInfo {
+    pub volume: f32,
+    pub queue_len: usize,
+}
 
 pub struct Status {}
 
@@ -17,25 +20,25 @@ impl Status {
 }
 
 impl StatefulWidget for Status {
-    type State = Option<CurrentTrack>;
+    type State = StatusInfo;
 
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Option<CurrentTrack>) {
-        let title = match state {
-            Some(v) => v.track.title.clone(),
-            None => "Nothing Playing".to_string(),
-        };
-        let artist = match state {
-            Some(v) => v.track.artists.to_string(),
-            None => "Nothing Playing".to_string(),
-        };
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut StatusInfo) {
+        let vol = (state.volume * 100.0).floor();
+        let queue = state.queue_len;
 
-        let title = Line::styled(title, Style::new().bold());
-        let artist = Line::styled(artist, Style::new().italic().dim());
+        let volume_line = Line::from(vec![
+            Span::styled("V: ", Style::default().dim()),
+            Span::styled(format!("{}%", vol), Style::default().bold()),
+        ]);
+        let queue_line = Line::from(vec![
+            Span::styled("Q: ", Style::default().dim()),
+            Span::styled(format!("{}", queue), Style::default().bold()),
+        ]);
 
-        let text = Paragraph::new(vec![title, artist]).block(
+        let text = Paragraph::new(vec![volume_line, queue_line]).block(
             Block::bordered()
                 .border_type(BorderType::Rounded)
-                .border_style(Style::new().green()),
+                .border_style(Style::new().fg(Color::Green)),
         );
 
         text.render(area, buf);
