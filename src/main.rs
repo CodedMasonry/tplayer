@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::{fs, path::PathBuf};
 
-use tplayer::{app::App, audio::AudioHandler, files::SourceHandler};
+use tplayer::{app::App, audio::AudioHandler, config::Config, files::SourceHandler};
 
 /// Terminal music player because GUIs don't like wayland
 #[derive(Parser, Debug)]
@@ -35,11 +35,16 @@ fn main() -> color_eyre::Result<()> {
     }
 
     // Init Handlers
-    let source = SourceHandler::build(absolute_source)?;
+    let source = SourceHandler::build(absolute_source.clone())?;
     let audio = AudioHandler::new();
 
+    // Init & Handle Config
+    let config = Config::parse_or_new(&absolute_source.join("config.json"));
+    audio.sink.set_volume(config.volume);
+
+    // Run UI
     let terminal = ratatui::init();
-    let result = App::new(source, audio).run(terminal);
+    let result = App::new(source, audio, config).run(terminal);
     ratatui::restore();
     result
 }

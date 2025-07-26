@@ -1,5 +1,6 @@
 use crate::{
     audio::AudioHandler,
+    config::Config,
     event::{AppEvent, Event, EventHandler},
     files::{Playlist, SourceHandler, Track},
 };
@@ -9,6 +10,7 @@ use ratatui::{
     widgets::ListState,
 };
 
+/// Context for current list
 #[derive(PartialEq)]
 pub enum CurrentList {
     Playlists,
@@ -19,6 +21,9 @@ pub enum CurrentList {
 pub struct App {
     /// Quit
     pub quit: bool,
+
+    /// Config
+    pub config: Config,
 
     /// Handlers & Handlers
     pub source: SourceHandler,
@@ -37,7 +42,7 @@ impl App {
      */
 
     /// Constructs a new instance of [`App`].
-    pub fn new(source: SourceHandler, audio: AudioHandler) -> Self {
+    pub fn new(source: SourceHandler, audio: AudioHandler, config: Config) -> Self {
         // Init Lists
         let mut album_list_state = ListState::default();
         album_list_state.select_first();
@@ -47,6 +52,8 @@ impl App {
 
         Self {
             quit: false,
+
+            config,
 
             source,
             audio,
@@ -102,8 +109,8 @@ impl App {
                 AppEvent::PlaySeekBack => self.audio.seek_back(),
 
                 // Volume
-                AppEvent::VolumeUp => self.audio.raise_volume(0.05),
-                AppEvent::VolumeDown => self.audio.lower_volume(0.05),
+                AppEvent::VolumeUp => self.audio.raise_volume(0.05, &mut self.config),
+                AppEvent::VolumeDown => self.audio.lower_volume(0.05, &mut self.config),
             },
         }
         Ok(())

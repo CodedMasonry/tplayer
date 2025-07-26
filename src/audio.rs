@@ -6,7 +6,7 @@ use std::{
 use anyhow::Error;
 use rodio::{OutputStream, Sink, Source};
 
-use crate::files::Track;
+use crate::{config::Config, files::Track};
 
 pub struct AudioHandler {
     /// Player
@@ -136,7 +136,7 @@ impl AudioHandler {
         self.sink.volume()
     }
 
-    pub fn lower_volume(&self, amount: f32) {
+    pub fn lower_volume(&self, amount: f32, config: &mut Config) {
         let volume = self.volume();
 
         if volume - amount <= 0.0 {
@@ -144,9 +144,12 @@ impl AudioHandler {
         } else {
             self.sink.set_volume(round_vol(volume - amount))
         }
+
+        // Save to config
+        config.set_volume(self.volume());
     }
 
-    pub fn raise_volume(&self, amount: f32) {
+    pub fn raise_volume(&self, amount: f32, config: &mut Config) {
         let volume = self.volume();
 
         if volume + amount >= 1.0 {
@@ -154,6 +157,9 @@ impl AudioHandler {
         } else {
             self.sink.set_volume(round_vol(volume + amount))
         }
+
+        // Save to config
+        config.set_volume(self.volume());
     }
 }
 
