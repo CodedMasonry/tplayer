@@ -56,7 +56,11 @@ impl App {
         );
         frame.render_stateful_widget(
             ListArea::new(
-                self.source.list_tracks_from_playlists(current_playlist),
+                self.source
+                    .playlists
+                    .get(current_playlist)
+                    .unwrap()
+                    .display(),
                 self.current_list == CurrentList::Tracks,
             ),
             horizontal_top[1],

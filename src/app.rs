@@ -170,7 +170,7 @@ impl App {
                 &mut self.track_list_state,
                 // Length
                 self.source
-                    .tracks_in_playlists(self.album_list_state.selected().unwrap()),
+                    .num_tracks_in_playlists(self.album_list_state.selected().unwrap()),
             ),
         };
 
@@ -219,7 +219,7 @@ impl App {
     /// Handles trying to play previous song
     fn previous(&mut self) {
         if let Some(primary_track) = &self.audio.primary_track {
-            if primary_track.number > 1 {
+            if primary_track.metadata.number > 1 {
                 self.audio
                     .play_track(
                         &self.previous_in_playlist(&primary_track).unwrap().clone(),
@@ -241,11 +241,10 @@ impl App {
             .unwrap()
     }
 
-    pub fn selected_track(&self) -> &Track {
+    pub fn selected_track(&self) -> Track {
         let playlist = self.selected_playlist();
         playlist
-            .tracks
-            .get(self.track_list_state.selected().unwrap())
+            .get(self.track_list_state.selected().unwrap() as u32)
             .unwrap()
     }
 
@@ -257,16 +256,16 @@ impl App {
      * Audio functions that require higher context
      */
 
-    pub fn next_in_playlist(&self, track: &Track) -> Option<&Track> {
+    pub fn next_in_playlist(&self, track: &Track) -> Option<Track> {
         let playlist = self.track_to_playlist(track);
         // The number starts at 1 instead of 0 (how albums number), so just use it as the index for next
-        playlist.tracks.get(track.number)
+        playlist.get(track.metadata.number as u32)
     }
 
-    pub fn previous_in_playlist(&self, track: &Track) -> Option<&Track> {
+    pub fn previous_in_playlist(&self, track: &Track) -> Option<Track> {
         let playlist = self.track_to_playlist(track);
         // The number starts at 1 instead of 0 (how albums number), so subtract 2 to get previous
-        playlist.tracks.get(track.number - 2)
+        playlist.get((track.metadata.number - 2) as u32)
     }
 
     /*
@@ -291,7 +290,8 @@ impl App {
             // Play next in playlist if nothing in queue
             else if primary_track.is_some() {
                 let primary_track = primary_track.clone().unwrap();
-                if primary_track.number < self.track_to_playlist(&primary_track).tracks.len() {
+                let primary_num = primary_track.metadata.number as usize;
+                if primary_num < self.track_to_playlist(&primary_track).tracks().len() {
                     self.audio
                         .play_track(
                             &self.next_in_playlist(&primary_track).unwrap().clone(),

@@ -21,11 +21,11 @@ impl StatefulWidget for CurrentPlaying {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Option<CurrentTrack>) {
         let title = match state {
-            Some(v) => v.track.title.clone(),
+            Some(v) => v.track.metadata.title.clone(),
             None => "Nothing Playing".to_string(),
         };
         let artist = match state {
-            Some(v) => v.track.artists.to_string(),
+            Some(v) => v.track.metadata.artists.to_string(),
             None => "Nothing Playing".to_string(),
         };
 
