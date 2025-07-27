@@ -261,13 +261,13 @@ impl App {
     pub fn next_in_playlist(&self, track: &Track) -> Option<Track> {
         let playlist = self.track_to_playlist(track);
         // The number starts at 1 instead of 0 (how albums number), so just use it as the index for next
-        playlist.get(track.metadata.number as u32)
+        playlist.get((track.metadata.number + 1) as u32)
     }
 
     pub fn previous_in_playlist(&self, track: &Track) -> Option<Track> {
         let playlist = self.track_to_playlist(track);
         // The number starts at 1 instead of 0 (how albums number), so subtract 2 to get previous
-        playlist.get((track.metadata.number - 2) as u32)
+        playlist.get((track.metadata.number - 1) as u32)
     }
 
     /*

@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Error;
+use color_eyre::eyre::Error;
 use rodio::{OutputStream, Sink, Source};
 
 use crate::{config::Config, files::Track};

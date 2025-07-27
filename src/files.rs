@@ -1,13 +1,12 @@
 use std::{
-    fs::{self},
-    io::Error,
+    fs::{self, DirEntry},
     num::NonZeroUsize,
     path::PathBuf,
     sync::{LazyLock, Mutex},
     time::Duration,
 };
 
-use anyhow::Context;
+use color_eyre::eyre::{Error, bail};
 use hashbrown::HashMap;
 use lofty::{
     file::{AudioFile, TaggedFileExt},
@@ -83,8 +82,15 @@ impl SourceHandler {
         // Use indexes so tracks can be backtraced to playlist
         let mut id = 0;
 
-        fs::read_dir(&path)?
-            .filter_map(|child| child.ok()) // Is able to read
+        // Get items
+        let mut children: Vec<DirEntry> = fs::read_dir(&path)?
+            .filter_map(|child| child.ok())
+            .collect();
+
+        // Try to sort and handle the items
+        children.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+        children
+            .iter()
             .filter_map(|child| {
                 if child.file_type().ok()?.is_dir() {
                     // Is a directory
@@ -113,10 +119,15 @@ impl SourceHandler {
     }
 
     /// Lists out playlists to be displayed
-    pub fn list_playlists(&self) -> Vec<Text> {
+    pub fn display_playlists(&self) -> Vec<Text> {
         let mut result = Vec::new();
+        let mut sorted: Vec<&Playlist> = self.playlists.values().collect();
 
-        for (_, playlist) in &self.playlists {
+        // Sort by id
+        sorted.sort_by(|a, b| a.id.cmp(&b.id));
+
+        // generate list based on sort
+        for playlist in sorted {
             let title = Line::styled(&playlist.title, Style::new().bold());
             let artists = Line::styled(&playlist.artists, Style::new().dim().italic());
 
@@ -140,9 +151,17 @@ impl Playlist {
         // Title & Artist(s)
         let mut name_parts = name.split(" - ");
         let artists = name_parts.next().unwrap().trim().to_string();
-        let title = name_parts.next().context(name.clone()).expect(
-            "Unexpected name format. Desired: [INDEX] [ARTIST] - [TITLE]\nNo Artist / Index found",
-        ).trim().to_string();
+        let title = match name_parts.next() {
+            Some(v) => v.trim().to_string(),
+            None => {
+                bail!(
+                    "Unexpected name format. Desired: [INDEX] [ARTIST] - [TITLE]\nNo Artist / Index found",
+                );
+            }
+        };
+
+        #[cfg(debug_assertions)]
+        let title = format!("{} ({})", title, id);
 
         Ok(Self {
             title,

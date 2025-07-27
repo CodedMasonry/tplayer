@@ -48,7 +48,7 @@ impl App {
         // Render Top
         frame.render_stateful_widget(
             ListArea::new(
-                self.source.list_playlists(),
+                self.source.display_playlists(),
                 self.current_list == CurrentList::Playlists,
             ),
             horizontal_top[0],
