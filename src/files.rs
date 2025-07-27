@@ -90,9 +90,13 @@ impl SourceHandler {
                     // Is a directory
                     let playlist =
                         Playlist::build(child.file_name().into_string().unwrap(), child.path(), id);
-                    id += 1;
 
-                    playlist.ok()
+                    if let Ok(v) = playlist {
+                        id += 1;
+                        Some(v)
+                    } else {
+                        None
+                    }
                 } else {
                     // Is regular file
                     None
