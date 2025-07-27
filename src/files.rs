@@ -1,8 +1,9 @@
 use std::{
     fs::{self},
     io::Error,
-    num,
+    num::NonZeroUsize,
     path::PathBuf,
+    sync::{LazyLock, Mutex},
     time::Duration,
 };
 
@@ -12,15 +13,30 @@ use lofty::{
     file::{AudioFile, TaggedFileExt},
     tag::Accessor,
 };
+use lru::LruCache;
 use ratatui::{
     style::{Style, Stylize},
     text::{Line, Text},
 };
 
+/*
+ * Globals
+ */
+
+/// Supported audio formats
 const AUDIO_EXTENSIONS: [&str; 7] = ["aac", "alac", "flac", "mp3", "ogg", "opus", "wav"];
+/// Cache of 5 most recent track lists
+static TRACK_CACHE: LazyLock<Mutex<LruCache<usize, Vec<Track>>>> =
+    LazyLock::new(|| Mutex::new(LruCache::new(NonZeroUsize::new(5).unwrap())));
+
+/*
+ * Structs
+ */
 
 pub struct SourceHandler {
+    /// Path where playlists are located
     pub path: PathBuf,
+    /// The playlists
     pub playlists: HashMap<usize, Playlist>,
 }
 
@@ -34,8 +50,6 @@ pub struct Playlist {
     pub artists: String,
     /// Path to folder
     pub path: PathBuf,
-    /// Tracks
-    tracks: Vec<Track>,
 }
 
 #[derive(Clone)]
@@ -58,6 +72,10 @@ pub struct TrackMetadata {
     pub bit_rate: u32,
     pub sample_rate: u32,
 }
+
+/*
+ * Functions
+ */
 
 impl SourceHandler {
     pub fn build(path: PathBuf) -> Result<Self, Error> {
@@ -122,13 +140,30 @@ impl Playlist {
             "Unexpected name format. Desired: [INDEX] [ARTIST] - [TITLE]\nNo Artist / Index found",
         ).trim().to_string();
 
-        let children: Vec<Track> = fs::read_dir(&path)
+        Ok(Self {
+            title,
+            artists,
+            path,
+            id,
+        })
+    }
+
+    /// fetches tracks
+    pub fn tracks<'a>(&self) -> Vec<Track> {
+        // If we get a cache hit, return it
+        let mut cache_lock = TRACK_CACHE.lock().unwrap();
+        if let Some(tracks) = cache_lock.get(&self.id) {
+            return tracks.clone();
+        }
+
+        // Fetch tracks if no cache hit
+        let children: Vec<Track> = fs::read_dir(&self.path)
             .expect("Failed to read playlist")
             .filter_map(|child| child.ok()) // Is able to read
             .filter_map(|child| {
                 if child.file_type().ok()?.is_file() {
                     // Is a file
-                    Track::try_new(child.path(), id)
+                    Track::try_new(child.path(), self.id)
                 } else {
                     // Is dir
                     None
@@ -136,18 +171,10 @@ impl Playlist {
             })
             .collect();
 
-        Ok(Self {
-            title,
-            artists,
-            path,
-            id,
-            tracks: children,
-        })
-    }
+        // Save to cache
+        cache_lock.put(self.id, children.clone());
 
-    /// fetches tracks
-    pub fn tracks(&self) -> &Vec<Track> {
-        return &self.tracks;
+        return children;
     }
 
     /// Gets specific track based off number
