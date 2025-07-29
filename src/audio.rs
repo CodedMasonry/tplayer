@@ -1,3 +1,7 @@
+/*
+ * Handles Audio Playback
+ */
+
 use std::{
     fs::{self},
     time::Duration,

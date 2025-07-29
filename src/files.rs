@@ -1,3 +1,7 @@
+/*
+ * Handles source directory
+ */
+
 use std::{
     fs::{self, DirEntry},
     num::NonZeroUsize,
@@ -26,7 +30,7 @@ use ratatui::{
 const AUDIO_EXTENSIONS: [&str; 7] = ["aac", "alac", "flac", "mp3", "ogg", "opus", "wav"];
 /// Cache of 5 most recent track lists
 static TRACK_CACHE: LazyLock<Mutex<LruCache<usize, Vec<Track>>>> =
-    LazyLock::new(|| Mutex::new(LruCache::new(NonZeroUsize::new(5).unwrap())));
+    LazyLock::new(|| Mutex::new(LruCache::new(NonZeroUsize::new(10).unwrap())));
 
 /*
  * Structs
@@ -39,7 +43,7 @@ pub struct SourceHandler {
     pub playlists: HashMap<usize, Playlist>,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Playlist {
     /// Used to by tracks to reference playlist
     pub id: usize,
@@ -97,11 +101,15 @@ impl SourceHandler {
                     let playlist =
                         Playlist::build(child.file_name().into_string().unwrap(), child.path(), id);
 
-                    if let Ok(v) = playlist {
-                        id += 1;
-                        Some(v)
-                    } else {
-                        None
+                    match playlist {
+                        Ok(v) => {
+                            id += 1;
+                            Some(v)
+                        }
+                        Err(v) => {
+                            eprintln!("{v}");
+                            None
+                        }
                     }
                 } else {
                     // Is regular file
@@ -159,9 +167,6 @@ impl Playlist {
                 );
             }
         };
-
-        #[cfg(debug_assertions)]
-        let title = format!("{} ({})", title, id);
 
         Ok(Self {
             title,

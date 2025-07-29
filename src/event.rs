@@ -1,3 +1,7 @@
+/*
+ * Handles event thread
+ */
+
 use color_eyre::eyre::WrapErr;
 use ratatui::crossterm::event::{self, Event as CrosstermEvent};
 use std::{

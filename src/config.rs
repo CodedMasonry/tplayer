@@ -1,3 +1,7 @@
+/*
+ * Handles the config file
+ */
+
 use std::{
     fs::{self, File},
     path::{Path, PathBuf},

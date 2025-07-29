@@ -1,3 +1,7 @@
+/*
+ * Handles unzipping files if needed
+ */
+
 use std::{
     fs::{self, File},
     io::{self, Write},

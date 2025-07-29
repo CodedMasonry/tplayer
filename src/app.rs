@@ -1,3 +1,7 @@
+/*
+ * Handles Main Application Loop
+ */
+
 use crate::{
     audio::AudioHandler,
     config::Config,
@@ -191,7 +195,7 @@ impl App {
                 // Only works on tracks, can't queue playlist
                 CurrentList::Playlists => {}
                 CurrentList::Tracks => {
-                    let track = self.selected_track().clone();
+                    let track = self.selected_track().unwrap().clone();
                     self.audio
                         .queue_track(&track)
                         .expect("Failed to play track")
@@ -203,7 +207,7 @@ impl App {
                     self.current_list = CurrentList::Tracks;
                 }
                 CurrentList::Tracks => {
-                    let track = self.selected_track().clone();
+                    let track = self.selected_track().unwrap().clone();
                     self.audio
                         .play_track(&track, true)
                         .expect("Failed to play track")
@@ -234,20 +238,19 @@ impl App {
      * Fetchers
      */
 
-    pub fn selected_playlist(&self) -> &Playlist {
+    pub fn selected_playlist(&self) -> Option<&Playlist> {
         self.source
             .playlists
             .get(&self.album_list_state.selected().unwrap())
-            .unwrap()
     }
 
-    pub fn selected_track(&self) -> Track {
+    pub fn selected_track(&self) -> Option<Track> {
         let playlist = self.selected_playlist();
 
         // Indexes of tracks start a 1
         playlist
-            .get((self.track_list_state.selected().unwrap() + 1) as u32)
             .unwrap()
+            .get((self.track_list_state.selected().unwrap() + 1) as u32)
     }
 
     pub fn track_to_playlist(&self, track: &Track) -> &Playlist {
